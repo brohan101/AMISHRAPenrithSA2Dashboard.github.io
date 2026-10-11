@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PSHS &amp; Penrith SA2 Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.35.0.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root {
+  --bg:#2e3440;--bg2:#3b4252;--bg3:#434c5e;--border:#4c566a;
+  --text:#eceff4;--muted:#d8dee9;
+  --teal:#20B8B5;--blue:#3478E5;--pink:#E879AC;--coral:#E36B63;
+  --amber:#E8AD42;--green:#42A67A;--purple:#8A70C9;--navy:#34465E;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+a{color:var(--teal);text-decoration:none;}
+
+/* Sidebar */
+.sidebar{width:270px;background:var(--bg2);border-right:1px solid var(--border);position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:100;transition:transform .3s;}
+.sidebar-header{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
+.sidebar-header h2{font-size:16px;font-weight:700;line-height:1.3;}
+.sidebar-header p{font-size:11px;color:var(--muted);margin-top:4px;}
+.nav{padding:8px 0;}
+.nav a{display:flex;align-items:center;gap:10px;padding:11px 20px;color:var(--muted);font-size:13.5px;border-left:3px solid transparent;transition:all .15s;}
+.nav a:hover{background:var(--bg3);color:var(--text);}
+.nav a.active{border-left-color:var(--teal);color:var(--text);background:rgba(32,184,181,.08);}
+.nav-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--bg3);font-size:11px;font-weight:600;flex-shrink:0;}
+
+/* Content */
+.content{margin-left:270px;flex:1;padding:32px 40px 60px;max-width:1400px;}
+.tab{display:none;}
+.tab.active{display:block;}
+
+/* Hamburger */
+.hamburger{display:none;position:fixed;top:12px;left:12px;z-index:200;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;cursor:pointer;color:var(--text);font-size:20px;line-height:1;}
+
+/* Typography */
+h1{font-size:26px;font-weight:700;margin-bottom:6px;}
+.caption{color:var(--muted);font-size:12.5px;line-height:1.5;margin-bottom:24px;}
+h2{font-size:19px;font-weight:600;margin:24px 0 10px;}
+h3{font-size:15px;font-weight:600;margin:16px 0 8px;color:var(--muted);}
+.divider{border:none;border-top:1px solid var(--border);margin:28px 0;}
+
+/* Metrics */
+.metrics{display:flex;gap:14px;margin-bottom:24px;flex-wrap:wrap;}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 18px;flex:1;min-width:170px;}
+.metric-label{font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.3;}
+.metric-value{font-size:26px;font-weight:700;}
+.metric-delta{font-size:12px;margin-top:3px;}
+.delta-up{color:var(--green);}
+.delta-down{color:var(--coral);}
+.delta-neutral{color:var(--muted);}
+
+/* Charts */
+.chart-row{display:flex;gap:20px;margin-bottom:20px;}
+.chart-col{flex:1;min-width:0;}
+.chart-box{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;}
+.chart-box h3{margin-top:0;}
+
+/* Findings */
+.findings{display:flex;gap:14px;margin:16px 0;flex-wrap:wrap;}
+.finding{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px 18px;flex:1;min-width:220px;}
+.finding p{font-size:13px;line-height:1.65;color:var(--muted);}
+.finding strong{color:var(--text);}
+
+/* Text columns */
+.text-cols{display:flex;gap:24px;margin:16px 0;}
+.text-col{flex:1;font-size:13px;line-height:1.7;color:var(--muted);}
+.text-col strong{color:var(--text);}
+
+/* Collapsible */
+details{margin-top:16px;}
+summary{cursor:pointer;padding:10px 16px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:13px;color:var(--muted);user-select:none;}
+summary:hover{color:var(--text);}
+details[open] summary{border-radius:6px 6px 0 0;}
+.detail-body{padding:12px 16px;border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;overflow-x:auto;}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{background:var(--bg3);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);font-weight:600;}
+td{padding:7px 12px;border-bottom:1px solid var(--border);}
+tr:hover td{background:rgba(236,239,244,.03);}
+
+/* Legend */
+.legend{font-size:12.5px;color:var(--muted);margin-top:6px;line-height:1.8;}
+.legend-swatch{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px;}
+.legend-dot{display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle;margin-right:4px;}
+
+/* Map */
+#map-container{height:550px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+
+/* Gap metrics */
+.gap-side .metric{margin-bottom:10px;}
+
+/* Responsive */
+@media(max-width:900px){
+  .hamburger{display:block;}
+  .sidebar{transform:translateX(-100%);}
+  .sidebar.open{transform:translateX(0);}
+  .content{margin-left:0;padding:60px 16px 40px;}
+  .chart-row,.metrics,.findings,.text-cols{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<button class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')" aria-label="Menu">&#9776;</button>
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h2>PSHS &amp; Penrith SA2</h2>
+    <p>Interactive data dashboard</p>
+  </div>
+  <nav class="nav">
+    <a href="#" data-tab="icsea" class="active"><span class="nav-num">1</span>ICSEA Trends</a>
+    <a href="#" data-tab="socioeconomic"><span class="nav-num">2</span>Socioeconomic Profile</a>
+    <a href="#" data-tab="diversity"><span class="nav-num">3</span>Linguistic Diversity</a>
+    <a href="#" data-tab="lbote"><span class="nav-num">4</span>LBOTE Trends</a>
+    <a href="#" data-tab="staffing"><span class="nav-num">5</span>Staffing &amp; Enrolments</a>
+    <a href="#" data-tab="income"><span class="nav-num">6</span>Income &amp; Education</a>
+    <a href="#" data-tab="demographics"><span class="nav-num">7</span>Penrith Demographics</a>
+    <a href="#" data-tab="map"><span class="nav-num">8</span>SA2 Boundaries Map</a>
+  </nav>
+</aside>
+
+<main class="content">
+
+<!-- ============================================================ -->
+<!-- TAB 1: ICSEA TRENDS -->
+<!-- ============================================================ -->
+<section id="icsea" class="tab active">
+  <h1>PSHS ICSEA Trends (2008–2025)</h1>
+  <p class="caption">ICSEA score and corresponding national percentile over time. Source: ACARA My School.</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">2025 ICSEA</div>
+      <div class="metric-value">1,186</div>
+      <div class="metric-delta delta-up">+144 since 2008</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">2025 Percentile</div>
+      <div class="metric-value">99th</div>
+      <div class="metric-delta delta-up">+29 since 2008</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="chart-row">
+    <div class="chart-col">
+      <h2>ICSEA Score</h2>
+      <div id="chart-icsea-score"></div>
+    </div>
+    <div class="chart-col">
+      <h2>ICSEA Percentile</h2>
+      <div id="chart-icsea-pct"></div>
+    </div>
+  </div>
+
+  <details>
+    <summary>View raw data</summary>
+    <div class="detail-body" id="table-icsea"></div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 2: SOCIOECONOMIC PROFILE -->
+<!-- ============================================================ -->
+<section id="socioeconomic" class="tab">
+  <h1>Socioeconomic Profile: PSHS vs Penrith SA2</h1>
+  <p class="caption">Source: ABS Census QuickStats for Penrith SA2 (124031464), 2011–2021; ACARA My School, PSHS historical data.</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Penrith median income (2021)</div>
+      <div class="metric-value">$1,397/wk</div>
+      <div class="metric-delta delta-up">+47.2% since 2011</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Penrith as % of NSW</div>
+      <div class="metric-value">76.4%</div>
+      <div class="metric-delta delta-up">+0.7 pp since 2011</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">PSHS ICSEA (2021)</div>
+      <div class="metric-value">1,177</div>
+      <div class="metric-delta delta-up">+36 since 2011</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Top SEA quartile (2021)</div>
+      <div class="metric-value">74%</div>
+      <div class="metric-delta delta-up">+18 pp since 2011</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-col">
+      <h2>Panel A &mdash; Median weekly household income</h2>
+      <p class="caption">Penrith SA2 vs NSW, nominal AUD (not inflation-adjusted)</p>
+      <div id="chart-socio-income"></div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:10px;">
+        Penrith SA2 median income grew <strong>+47.2%</strong> over the decade,
+        closely tracking the NSW rate (+47.9%). The relative position
+        remained near-constant at <strong>~76%</strong> of the state median.
+      </p>
+    </div>
+    <div class="chart-col">
+      <h2>Panel B &mdash; PSHS socio-educational advantage</h2>
+      <p class="caption">ICSEA score and proportion of students in the top SEA quartile</p>
+      <h3>ICSEA score</h3>
+      <div id="chart-socio-icsea"></div>
+      <h3>Students in top SEA quartile (%)</h3>
+      <div id="chart-socio-sea"></div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-top:10px;">
+        PSHS ICSEA rose <strong>+36 points</strong> (1141 to 1177) from 2011 to 2021,
+        while the share of students in the top SEA quartile grew from
+        <strong>56% to 74%</strong> &mdash; indicating an increasingly advantaged intake.
+      </p>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h2>Interpretation</h2>
+  <div class="text-cols">
+    <div class="text-col">
+      <strong>Different measures, deliberate separation</strong><br><br>
+      Household income (Panel A) describes the <em>community</em> in which PSHS sits;
+      ICSEA (Panel B) describes the <em>school's student body</em>. ACARA explicitly
+      states that ICSEA is not a measure of family wealth or income. Using two
+      panels avoids implying equivalence.
+    </div>
+    <div class="text-col">
+      <strong>Catchment caveat</strong><br><br>
+      Because PSHS is a selective school, it draws students from well beyond
+      Penrith SA2. The community's income profile cannot be assumed to match
+      the socio-educational background of the school's families. The divergent
+      trends above &mdash; stable community income rank yet rising school SEA &mdash;
+      are consistent with widening enrolment reach.
+    </div>
+  </div>
+
+  <details>
+    <summary>Raw data tables</summary>
+    <div class="detail-body">
+      <h3>Income</h3>
+      <table>
+        <tr><th>Year</th><th>Penrith SA2 ($)</th><th>NSW ($)</th></tr>
+        <tr><td>2011</td><td>949</td><td>1,237</td></tr>
+        <tr><td>2016</td><td>1,142</td><td>1,486</td></tr>
+        <tr><td>2021</td><td>1,397</td><td>1,829</td></tr>
+      </table>
+      <h3 style="margin-top:16px;">ICSEA &amp; SEA</h3>
+      <table>
+        <tr><th>Year</th><th>ICSEA</th><th>Top SEA quartile (%)</th></tr>
+        <tr><td>2011</td><td>1,141</td><td>56</td></tr>
+        <tr><td>2016</td><td>1,163</td><td>70</td></tr>
+        <tr><td>2021</td><td>1,177</td><td>74</td></tr>
+      </table>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 3: LINGUISTIC DIVERSITY -->
+<!-- ============================================================ -->
+<section id="diversity" class="tab">
+  <h1>Linguistic Diversity: PSHS vs Penrith SA2 (2008–2025)</h1>
+  <p class="caption">PSHS LBOTE = Language Background Other Than English (school enrolment data, 2008–2025).
+  Penrith SA2 = proportion of residents not speaking English only at home (ABS Census, 2011 / 2016 / 2021).</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">2025 PSHS LBOTE</div>
+      <div class="metric-value">94%</div>
+      <div class="metric-delta delta-up">+71 pp since 2008</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">2008 PSHS LBOTE</div>
+      <div class="metric-value">23%</div>
+      <div class="metric-delta delta-neutral"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Penrith SA2 (2021 Census)</div>
+      <div class="metric-value">28.1%</div>
+      <div class="metric-delta delta-up">+7.8 pp since 2011</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h2>PSHS LBOTE vs Penrith SA2 community</h2>
+  <div id="chart-diversity"></div>
+  <div class="legend">
+    <span class="legend-swatch" style="background:#3478E5;"></span> PSHS LBOTE (school data, yearly)
+    &nbsp;&nbsp;&nbsp;
+    <span class="legend-dot" style="background:#E36B63;"></span> Penrith SA2 non-English at home (Census)
+    &nbsp;&nbsp;&nbsp;
+    <span class="legend-swatch" style="background:#34465E;border-top:2px dashed #34465E;height:0;"></span> 50% reference
+  </div>
+
+  <hr class="divider">
+  <h2>Key findings</h2>
+  <div class="findings">
+    <div class="finding">
+      <p><strong>Rapid LBOTE growth</strong><br><br>
+      PSHS LBOTE rose from 23% (2008) to 94% (2025) &mdash; a 71 pp increase
+      in 18 years, making it one of the most linguistically diverse
+      selective schools in NSW.</p>
+    </div>
+    <div class="finding">
+      <p><strong>School outpaces community</strong><br><br>
+      In 2021 the school was 91% LBOTE while the Penrith SA2 community
+      was 28.1% non-English &mdash; a 63 pp gap, up from 49 pp in 2011.</p>
+    </div>
+    <div class="finding">
+      <p><strong>Community diversifying too</strong><br><br>
+      Penrith SA2's non-English-at-home share grew from 20.3% (2011) to
+      28.1% (2021) &mdash; a 7.8 pp increase across three Census periods.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>View raw data</summary>
+    <div class="detail-body" id="table-diversity"></div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 4: LBOTE TRENDS -->
+<!-- ============================================================ -->
+<section id="lbote" class="tab">
+  <h1>PSHS LBOTE Trends (2008–2025)</h1>
+  <p class="caption">Language Background Other Than English &mdash; proportion of students over time.
+  Source: ACARA My School, PSHS 2008–2025 dataset, columns AG–AI.</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">2025 LBOTE</div>
+      <div class="metric-value">94%</div>
+      <div class="metric-delta delta-up">+71 pp since 2008</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">2008 LBOTE</div>
+      <div class="metric-value">23%</div>
+      <div class="metric-delta delta-neutral"></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">2025 Non-LBOTE</div>
+      <div class="metric-value">6%</div>
+      <div class="metric-delta delta-neutral"></div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div id="chart-lbote"></div>
+
+  <details>
+    <summary>View raw data</summary>
+    <div class="detail-body" id="table-lbote"></div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 5: STAFFING & ENROLMENTS -->
+<!-- ============================================================ -->
+<section id="staffing" class="tab">
+  <h1>PSHS Staffing &amp; Enrolment Stability (2008–2025)</h1>
+  <p class="caption">Penrith Selective High School &mdash; teaching staff and student numbers remain
+  stable over 18 years, even as the Penrith SA2 population has grown. Source: ACARA My School.</p>
+
+  <h2>Teaching Staff</h2>
+  <div id="chart-staff"></div>
+
+  <h2>Student Numbers</h2>
+  <div id="chart-enrolments"></div>
+
+  <hr class="divider">
+  <p class="caption">Data: ACARA My School &mdash; Penrith Selective High School, 2008–2025.</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 6: INCOME & EDUCATION -->
+<!-- ============================================================ -->
+<section id="income" class="tab">
+  <h1>Income &amp; Education: Penrith SA2 vs NSW</h1>
+  <p class="caption">Source: ABS Census QuickStats for Penrith SA2 (124031464), 2011 / 2016 / 2021.</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Penrith median weekly income (2021)</div>
+      <div class="metric-value">$1,397</div>
+      <div class="metric-delta delta-up">+47.2% since 2011</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">NSW median weekly income (2021)</div>
+      <div class="metric-value">$1,829</div>
+      <div class="metric-delta delta-up">+47.9% since 2011</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Penrith bachelor degree+ (2021)</div>
+      <div class="metric-value">19.7%</div>
+      <div class="metric-delta delta-up">+4.9 pp since 2016</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">NSW bachelor degree+ (2021)</div>
+      <div class="metric-value">27.8%</div>
+      <div class="metric-delta delta-up">+4.4 pp since 2016</div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="chart-col">
+      <div class="chart-box">
+        <h3>Median weekly income</h3>
+        <div id="chart-inc-income"></div>
+      </div>
+    </div>
+    <div class="chart-col">
+      <div class="chart-box">
+        <h3>Bachelor degree or higher</h3>
+        <p class="caption">% of residents aged 15+ (not available for 2011)</p>
+        <div id="chart-inc-edu"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-box">
+    <h3>Income gap over time</h3>
+    <div class="chart-row">
+      <div class="chart-col" style="flex:2;">
+        <div id="chart-inc-gap"></div>
+      </div>
+      <div class="chart-col gap-side" style="flex:1;">
+        <p style="font-size:13px;font-weight:600;margin-bottom:12px;">Penrith as % of NSW median</p>
+        <div class="metric" style="margin-bottom:10px;">
+          <div class="metric-label">2011</div>
+          <div class="metric-value" style="font-size:22px;">76.7%</div>
+          <div class="metric-delta delta-neutral">Gap: $288/week</div>
+        </div>
+        <div class="metric" style="margin-bottom:10px;">
+          <div class="metric-label">2016</div>
+          <div class="metric-value" style="font-size:22px;">76.8%</div>
+          <div class="metric-delta delta-neutral">Gap: $344/week</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">2021</div>
+          <div class="metric-value" style="font-size:22px;">76.4%</div>
+          <div class="metric-delta delta-neutral">Gap: $432/week</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h2>Key findings</h2>
+  <div class="findings">
+    <div class="finding">
+      <p><strong>Income growth tracks NSW</strong><br><br>
+      Both Penrith (+47.2%) and NSW (+47.9%) saw near-identical
+      income growth from 2011 to 2021, so the relative gap persists.</p>
+    </div>
+    <div class="finding">
+      <p><strong>Education closing the gap</strong><br><br>
+      Penrith's bachelor-degree rate grew by 4.9 pp (2016–2021) vs
+      4.4 pp for NSW, narrowing the education gap from 8.6 to 8.1 pp.</p>
+    </div>
+    <div class="finding">
+      <p><strong>Absolute gap widens</strong><br><br>
+      The weekly income gap grew from $288 to $432 despite similar
+      percentage growth, because NSW starts from a higher base.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Raw data tables</summary>
+    <div class="detail-body">
+      <h3>Income</h3>
+      <table>
+        <tr><th>Year</th><th>Penrith SA2 ($)</th><th>NSW ($)</th></tr>
+        <tr><td>2011</td><td>949</td><td>1,237</td></tr>
+        <tr><td>2016</td><td>1,142</td><td>1,486</td></tr>
+        <tr><td>2021</td><td>1,397</td><td>1,829</td></tr>
+      </table>
+      <h3 style="margin-top:16px;">Education</h3>
+      <table>
+        <tr><th>Year</th><th>Penrith SA2 (%)</th><th>NSW (%)</th></tr>
+        <tr><td>2016</td><td>14.8</td><td>23.4</td></tr>
+        <tr><td>2021</td><td>19.7</td><td>27.8</td></tr>
+      </table>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 7: PENRITH DEMOGRAPHICS -->
+<!-- ============================================================ -->
+<section id="demographics" class="tab">
+  <h1>Demographic Change in Penrith SA2 (2011–2021)</h1>
+  <p class="caption">Source: ABS Census QuickStats for Penrith SA2 (124031464), 2011, 2016 and 2021.</p>
+
+  <div class="chart-row" id="demo-panels">
+    <div class="chart-col">
+      <div class="chart-box">
+        <h3 style="margin-top:0;">Total population</h3>
+        <div class="metric" style="border:none;padding:0;">
+          <div class="metric-value">17,966</div>
+          <div class="metric-delta delta-up">+52.1%</div>
+        </div>
+        <div id="chart-demo-pop"></div>
+      </div>
+    </div>
+    <div class="chart-col">
+      <div class="chart-box">
+        <h3 style="margin-top:0;">Median age</h3>
+        <div class="metric" style="border:none;padding:0;">
+          <div class="metric-value">36 yrs</div>
+          <div class="metric-delta delta-down">-2.7%</div>
+        </div>
+        <div id="chart-demo-age"></div>
+      </div>
+    </div>
+    <div class="chart-col">
+      <div class="chart-box">
+        <h3 style="margin-top:0;">Aged 10–19</h3>
+        <div class="metric" style="border:none;padding:0;">
+          <div class="metric-value">8.5%</div>
+          <div class="metric-delta delta-down">-18.3%</div>
+        </div>
+        <div id="chart-demo-youth"></div>
+      </div>
+    </div>
+    <div class="chart-col">
+      <div class="chart-box">
+        <h3 style="margin-top:0;">Aboriginal / Torres Strait Islander</h3>
+        <div class="metric" style="border:none;padding:0;">
+          <div class="metric-value">6.2%</div>
+          <div class="metric-delta delta-up">+55.0%</div>
+        </div>
+        <div id="chart-demo-atsi"></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <h2>Key findings (2011–2021)</h2>
+  <ul style="font-size:14px;line-height:1.8;color:var(--muted);padding-left:20px;">
+    <li>Penrith's population <strong>increased by 52.1%</strong>, from 11,814 to 17,966 residents.</li>
+    <li>The proportion of residents aged 10–19 <strong>decreased from 10.4% to 8.5%</strong>.</li>
+    <li>Aboriginal and/or Torres Strait Islander representation <strong>increased from 4.0% to 6.2%</strong>.</li>
+  </ul>
+
+  <details>
+    <summary>Underlying data</summary>
+    <div class="detail-body">
+      <table>
+        <tr><th>Indicator</th><th>2011</th><th>2016</th><th>2021</th></tr>
+        <tr><td>Total population</td><td>11,814</td><td>13,295</td><td>17,966</td></tr>
+        <tr><td>Median age</td><td>37 yrs</td><td>37 yrs</td><td>36 yrs</td></tr>
+        <tr><td>Aged 10–19</td><td>10.4%</td><td>10.1%</td><td>8.5%</td></tr>
+        <tr><td>Aboriginal / TSI</td><td>4.0%</td><td>5.0%</td><td>6.2%</td></tr>
+      </table>
+    </div>
+  </details>
+</section>
+
+<!-- ============================================================ -->
+<!-- TAB 8: SA2 BOUNDARIES MAP -->
+<!-- ============================================================ -->
+<section id="map" class="tab">
+  <h1>Penrith SA2 &mdash; School Locations</h1>
+  <p class="caption">Schools in and around Penrith SA2, plotted on OpenStreetMap. Zoom and pan to explore.</p>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Schools shown</div>
+      <div class="metric-value">4</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">SA2 region</div>
+      <div class="metric-value">Penrith</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">SA2 code</div>
+      <div class="metric-value">124031464</div>
+    </div>
+  </div>
+
+  <div id="map-container"></div>
+
+  <details style="margin-top:16px;">
+    <summary>School coordinates</summary>
+    <div class="detail-body">
+      <table>
+        <tr><th>School</th><th>Latitude</th><th>Longitude</th></tr>
+        <tr><td>Penrith Public School</td><td>-33.7559</td><td>150.7044</td></tr>
+        <tr><td>Penrith Selective High School</td><td>-33.7563</td><td>150.7068</td></tr>
+        <tr><td>St Nicholas of Myra Primary School</td><td>-33.7545</td><td>150.7001</td></tr>
+        <tr><td>Wadangali Public School</td><td>-33.7431</td><td>150.7095</td></tr>
+      </table>
+    </div>
+  </details>
+</section>
+
+</main>
+
+<script>
+/* ================================================================
+   DATA
+   ================================================================ */
+var D = {};
+
+D.years = ['2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020','2021','2022','2023','2024','2025'];
+
+D.icsea = [1042,1042,1139,1141,1141,1177,1171,1172,1163,1163,1164,1171,1177,1177,1174,1174,1182,1186];
+D.pct   = [70,70,92,93,93,98,97,97,97,97,97,98,98,98,98,98,99,99];
+
+D.staff = [61,59,58,62,61,56,57,58,54,53,56,52,55,55,57,52,55,59];
+D.enrol = [900,905,903,912,927,926,931,939,951,926,922,917,915,930,935,936,928,930];
+
+D.lbote    = [23,44,66,69,74,77,78,81,83,86,88,90,92,91,92,93,94,94];
+D.nonLbote = [77,56,34,30,25,22,22,19,17,14,12,10,8,9,8,7,6,6];
+D.notStat  = [0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0];
+
+D.pshsLbote = [23,44,66,69,74,77,78,81,83,86,88,90,92,91,92,93,94,94];
+D.sa2NonEng = [null,null,null,20.3,null,null,null,null,24.4,null,null,null,null,28.1,null,null,null,null];
+D.sa2Years  = ['2011','2016','2021'];
+D.sa2Vals   = [20.3, 24.4, 28.1];
+
+D.schools = [
+  {name:'Penrith Public School',       lat:-33.7559, lon:150.7044},
+  {name:'Penrith Selective High School',lat:-33.7563, lon:150.7068},
+  {name:'St Nicholas of Myra Primary',  lat:-33.7545, lon:150.7001},
+  {name:'Wadangali Public School',      lat:-33.7431, lon:150.7095},
+];
+
+/* ================================================================
+   PLOTLY HELPERS
+   ================================================================ */
+var darkLayout = {
+  paper_bgcolor:'#2e3440', plot_bgcolor:'#2e3440',
+  font:{color:'#eceff4', family:'Segoe UI, system-ui, sans-serif', size:12},
+  margin:{t:20,r:20,b:45,l:55},
+  xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+  yaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+  hoverlabel:{bgcolor:'#3b4252',bordercolor:'#4c566a',font:{color:'#eceff4',size:12}},
+};
+var pCfg = {displayModeBar:false, responsive:true};
+
+function dl(overrides){
+  var base = JSON.parse(JSON.stringify(darkLayout));
+  for(var k in overrides){
+    if(typeof overrides[k]==='object' && !Array.isArray(overrides[k]) && base[k]){
+      for(var j in overrides[k]) base[k][j]=overrides[k][j];
+    } else { base[k]=overrides[k]; }
+  }
+  return base;
+}
+
+function lineTrace(x,y,color,textFmt){
+  var t = {
+    type:'scatter', mode:'lines+markers+text', x:x, y:y,
+    line:{color:color, width:3},
+    marker:{color:color, size:7},
+    textposition:'top center',
+    textfont:{color:color, size:11},
+    hovertemplate:'%{x}: %{y}<extra></extra>',
+  };
+  if(textFmt==='int')   t.text = y.map(function(v){return v.toString();});
+  if(textFmt==='float') t.text = y.map(function(v){return v.toFixed(1);});
+  if(textFmt==='$')     t.text = y.map(function(v){return '$'+v.toLocaleString();});
+  return t;
+}
+
+/* ================================================================
+   TAB SWITCHING
+   ================================================================ */
+var rendered = {};
+var tabLinks = document.querySelectorAll('.nav a');
+var tabs = document.querySelectorAll('.tab');
+
+function showTab(id){
+  tabs.forEach(function(t){t.classList.remove('active');});
+  tabLinks.forEach(function(a){a.classList.remove('active');});
+  document.getElementById(id).classList.add('active');
+  document.querySelector('[data-tab="'+id+'"]').classList.add('active');
+  if(!rendered[id]){renderTab(id); rendered[id]=true;}
+  else { /* resize plotly charts */
+    document.querySelectorAll('#'+id+' .js-plotly-plot').forEach(function(el){Plotly.Plots.resize(el);});
+  }
+  /* Always re-invalidate Leaflet map when its tab is shown */
+  if(id==='map' && leafletMap){
+    setTimeout(function(){leafletMap.invalidateSize();},50);
+    setTimeout(function(){leafletMap.invalidateSize();},250);
+  }
+  document.querySelector('.sidebar').classList.remove('open');
+}
+
+tabLinks.forEach(function(a){
+  a.addEventListener('click',function(e){
+    e.preventDefault();
+    showTab(this.getAttribute('data-tab'));
+  });
+});
+
+/* ================================================================
+   CHART RENDERERS
+   ================================================================ */
+function renderTab(id){
+  var fn = renderers[id];
+  if(fn) fn();
+}
+
+var renderers = {};
+
+/* ---- 1. ICSEA ---- */
+renderers.icsea = function(){
+  Plotly.newPlot('chart-icsea-score',[
+    lineTrace(D.years, D.icsea, '#3478E5', 'int')
+  ], dl({height:380, yaxis:{title:'ICSEA Score', range:[1020,1200], gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+         xaxis:{title:'Year', gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}}}), pCfg);
+
+  Plotly.newPlot('chart-icsea-pct',[
+    lineTrace(D.years, D.pct, '#E879AC', 'int')
+  ], dl({height:380, yaxis:{title:'Percentile', range:[65,100], gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+         xaxis:{title:'Year', gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}}}), pCfg);
+
+  /* data table */
+  var h='<table><tr><th>Year</th><th>ICSEA</th><th>Percentile</th></tr>';
+  for(var i=0;i<D.years.length;i++) h+='<tr><td>'+D.years[i]+'</td><td>'+D.icsea[i]+'</td><td>'+D.pct[i]+'</td></tr>';
+  h+='</table>';
+  document.getElementById('table-icsea').innerHTML=h;
+};
+
+/* ---- 2. SOCIOECONOMIC ---- */
+renderers.socioeconomic = function(){
+  var yrs = ['2011','2016','2021'];
+  var penInc = [949,1142,1397];
+  var nswInc = [1237,1486,1829];
+
+  /* Panel A: Income lines */
+  Plotly.newPlot('chart-socio-income',[
+    {type:'scatter',mode:'lines+markers+text',x:yrs,y:penInc,name:'Penrith SA2',
+     line:{color:'#E879AC',width:2.5},marker:{color:'#E879AC',size:9},
+     text:penInc.map(function(v){return '$'+v.toLocaleString();}),textposition:'top center',textfont:{color:'#E879AC',size:13},
+     hovertemplate:'Penrith SA2: $%{y:,}<extra></extra>'},
+    {type:'scatter',mode:'lines+markers+text',x:yrs,y:nswInc,name:'NSW',
+     line:{color:'#3478E5',width:2.5},marker:{color:'#3478E5',size:9},
+     text:nswInc.map(function(v){return '$'+v.toLocaleString();}),textposition:'top center',textfont:{color:'#3478E5',size:13},
+     hovertemplate:'NSW: $%{y:,}<extra></extra>'},
+  ], dl({height:380,
+    yaxis:{title:'Dollars ($)',range:[800,2000],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    legend:{orientation:'h',y:-0.15,font:{size:12}},
+    showlegend:true
+  }), pCfg);
+
+  /* Panel B: ICSEA bars */
+  var icsea = [1141,1163,1177];
+  var base = 1100;
+  Plotly.newPlot('chart-socio-icsea',[{
+    type:'bar', x:yrs, y:icsea.map(function(v){return v-base;}), base:base,
+    marker:{color:'#8A70C9', line:{width:0}},
+    text:icsea.map(String), textposition:'outside', textfont:{color:'#f0f0f0',size:14},
+    width:0.4, hovertemplate:'%{x}: %{customdata}<extra></extra>',
+    customdata:icsea
+  }], dl({height:180, margin:{t:30,r:20,b:30,l:40},
+    yaxis:{range:[1100,1210],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    bargap:0.3}), pCfg);
+
+  /* Panel B: SEA line */
+  var sea = [56,70,74];
+  Plotly.newPlot('chart-socio-sea',[
+    lineTrace(yrs, sea, '#42A67A', 'int')
+  ], dl({height:160, margin:{t:20,r:20,b:30,l:40},
+    yaxis:{range:[40,90],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}}}), pCfg);
+};
+
+/* ---- 3. LINGUISTIC DIVERSITY ---- */
+renderers.diversity = function(){
+  /* PSHS line */
+  var pshs = {
+    type:'scatter', mode:'lines+markers+text', x:D.years, y:D.pshsLbote,
+    line:{color:'#3478E5',width:3}, marker:{color:'#3478E5',size:7},
+    text:D.pshsLbote.map(String), textposition:'top center', textfont:{color:'#3478E5',size:11},
+    name:'PSHS LBOTE', showlegend:false,
+    hovertemplate:'PSHS LBOTE: %{y}%<extra></extra>'
+  };
+  /* SA2 scatter */
+  var sa2 = {
+    type:'scatter', mode:'markers+text', x:D.sa2Years, y:D.sa2Vals,
+    marker:{color:'#E36B63',size:14}, name:'Penrith SA2', showlegend:false,
+    text:D.sa2Vals.map(function(v){return v.toFixed(1);}), textposition:'bottom center', textfont:{color:'#E36B63',size:11},
+    hovertemplate:'Census %{x}: %{y:.1f}%<extra></extra>'
+  };
+
+  Plotly.newPlot('chart-diversity',[pshs,sa2], dl({height:450,
+    yaxis:{title:'Percentage (%)',range:[0,105],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{title:'Year',gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    shapes:[{type:'line',x0:0,x1:1,xref:'paper',y0:50,y1:50,yref:'y',
+             line:{color:'#34465E',width:1.5,dash:'dash'},opacity:0.6}]
+  }), pCfg);
+
+  /* table */
+  var h='<table><tr><th>Year</th><th>PSHS LBOTE %</th><th>Penrith SA2 non-English %</th></tr>';
+  for(var i=0;i<D.years.length;i++){
+    var sa = D.sa2NonEng[i]; h+='<tr><td>'+D.years[i]+'</td><td>'+D.pshsLbote[i]+'</td><td>'+(sa===null?'–':sa.toFixed(1))+'</td></tr>';
+  }
+  h+='</table>';
+  document.getElementById('table-diversity').innerHTML=h;
+};
+
+/* ---- 4. LBOTE ---- */
+renderers.lbote = function(){
+  Plotly.newPlot('chart-lbote',[{
+    type:'scatter',mode:'lines+markers+text',x:D.years,y:D.lbote,
+    line:{color:'#29B5E8',width:3},marker:{color:'#29B5E8',size:7},
+    text:D.lbote.map(String),textposition:'top center',textfont:{color:'#11567F',size:11},
+    hovertemplate:'%{x}: %{y}%<extra></extra>'
+  }], dl({height:450,
+    yaxis:{title:'LBOTE (%)',range:[0,105],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{title:'Year',gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    shapes:[{type:'line',x0:0,x1:1,xref:'paper',y0:50,y1:50,yref:'y',
+             line:{color:'#FF6B6B',width:1.5,dash:'dash'},opacity:0.6}]
+  }), pCfg);
+
+  var h='<table><tr><th>Year</th><th>LBOTE %</th><th>Non-LBOTE %</th><th>Not stated %</th></tr>';
+  for(var i=0;i<D.years.length;i++) h+='<tr><td>'+D.years[i]+'</td><td>'+D.lbote[i]+'</td><td>'+D.nonLbote[i]+'</td><td>'+D.notStat[i]+'</td></tr>';
+  h+='</table>';
+  document.getElementById('table-lbote').innerHTML=h;
+};
+
+/* ---- 5. STAFFING ---- */
+renderers.staffing = function(){
+  Plotly.newPlot('chart-staff',[
+    lineTrace(D.years, D.staff, '#3478E5', 'int')
+  ], dl({height:350,
+    yaxis:{title:'Teaching Staff (headcount)',gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{title:'Year',tickangle:-45,gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}}}), pCfg);
+
+  Plotly.newPlot('chart-enrolments',[
+    lineTrace(D.years, D.enrol, '#42A67A', 'int')
+  ], dl({height:350,
+    yaxis:{title:'Total Enrolments',gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{title:'Year',tickangle:-45,gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}}}), pCfg);
+};
+
+/* ---- 6. INCOME & EDUCATION ---- */
+renderers.income = function(){
+  var yrs3 = ['2011','2016','2021'];
+  var penI = [949,1142,1397], nswI = [1237,1486,1829];
+
+  /* Income lines */
+  Plotly.newPlot('chart-inc-income',[
+    {type:'scatter',mode:'lines+markers+text',x:yrs3,y:penI,name:'Penrith SA2',
+     line:{color:'#E879AC',width:2.5},marker:{color:'#E879AC',size:9},
+     text:penI.map(function(v){return '$'+v.toLocaleString();}),textposition:'top center',textfont:{color:'#E879AC',size:13},
+     hovertemplate:'Penrith: $%{y:,}<extra></extra>'},
+    {type:'scatter',mode:'lines+markers+text',x:yrs3,y:nswI,name:'NSW',
+     line:{color:'#3478E5',width:2.5},marker:{color:'#3478E5',size:9},
+     text:nswI.map(function(v){return '$'+v.toLocaleString();}),textposition:'top center',textfont:{color:'#3478E5',size:13},
+     hovertemplate:'NSW: $%{y:,}<extra></extra>'},
+  ], dl({height:340,
+    yaxis:{title:'Dollars ($)',range:[800,2000],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    legend:{orientation:'h',y:-0.18,font:{size:12}}, showlegend:true
+  }), pCfg);
+
+  /* Education grouped bars */
+  var yrsE = ['2016','2021'];
+  var penE = [14.8,19.7], nswE = [23.4,27.8];
+  Plotly.newPlot('chart-inc-edu',[
+    {type:'bar',x:yrsE,y:penE,name:'Penrith SA2',
+     marker:{color:'#E879AC'},
+     text:penE.map(function(v){return v.toFixed(1);}),textposition:'outside',textfont:{color:'#E879AC',size:13},
+     hovertemplate:'Penrith: %{y:.1f}%<extra></extra>'},
+    {type:'bar',x:yrsE,y:nswE,name:'NSW',
+     marker:{color:'#3478E5'},
+     text:nswE.map(function(v){return v.toFixed(1);}),textposition:'outside',textfont:{color:'#3478E5',size:13},
+     hovertemplate:'NSW: %{y:.1f}%<extra></extra>'},
+  ], dl({height:340, barmode:'group',
+    yaxis:{title:'Percentage (%)',range:[0,35],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    legend:{orientation:'h',y:-0.18,font:{size:12}}, showlegend:true,
+    bargap:0.25, bargroupgap:0.1
+  }), pCfg);
+
+  /* Gap area chart */
+  var gaps = [288,344,432];
+  Plotly.newPlot('chart-inc-gap',[{
+    type:'scatter',mode:'lines+markers+text',x:yrs3,y:gaps,
+    fill:'tozeroy',fillcolor:'rgba(52,120,229,0.25)',
+    line:{color:'#3478E5',width:2.5},marker:{color:'#3478E5',size:9},
+    text:gaps.map(function(v){return '$'+v.toLocaleString();}),textposition:'top center',textfont:{color:'#eceff4',size:13},
+    hovertemplate:'Gap: $%{y:,}/week<extra></extra>'
+  }], dl({height:260, margin:{t:20,r:20,b:40,l:55},
+    yaxis:{title:'Weekly income gap ($)',range:[0,500],gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}},
+    xaxis:{gridcolor:'#4c566a',linecolor:'#4c566a',zerolinecolor:'#4c566a',tickfont:{size:11}}
+  }), pCfg);
+};
+
+/* ---- 7. DEMOGRAPHICS ---- */
+renderers.demographics = function(){
+  var yrs = ['2011','2016','2021'];
+  var panels = [
+    {id:'chart-demo-pop',   vals:[11814,13295,17966], color:'#0969DA', fmt:'int'},
+    {id:'chart-demo-age',   vals:[37,37,36],          color:'#6750A4', fmt:'int'},
+    {id:'chart-demo-youth', vals:[10.4,10.1,8.5],     color:'#BF8700', fmt:'float'},
+    {id:'chart-demo-atsi',  vals:[4.0,5.0,6.2],       color:'#1A7F37', fmt:'float'},
+  ];
+  panels.forEach(function(p){
+    var mn = Math.min.apply(null,p.vals), mx = Math.max.apply(null,p.vals);
+    var span = mx-mn; var pad = span>0? span*0.3 : (mx*0.1||1);
+    var t = lineTrace(yrs, p.vals, p.color, p.fmt);
+    t.marker.size = 9;
+    Plotly.newPlot(p.id,[t], dl({
+      height:160, margin:{t:10,r:10,b:30,l:10},
+      xaxis:{gridcolor:'transparent',linecolor:'transparent',zerolinecolor:'transparent',tickfont:{size:11}},
+      yaxis:{visible:false, range:[mn-pad, mx+pad]}
+    }), pCfg);
+  });
+};
+
+/* ---- 8. MAP ---- */
+var leafletMap = null;
+
+/* Penrith SA2 boundary (ABS ASGS 2021, code 124031464) */
+var penrithSA2 = [[[-33.729666730848656,150.69176048830448],[-33.729568310967878,150.69104015802429],[-33.729634090837372,150.69112122828375],[-33.734073781148339,150.68989062887093],[-33.734173901398862,150.68997881827903],[-33.734250510841377,150.68984179824872],[-33.735209160754721,150.68957720846495],[-33.73520409126872,150.6858976785185],[-33.735202201230386,150.68472876821289],[-33.735228441383335,150.68451647834496],[-33.735561991314718,150.68476000802519],[-33.735764990801258,150.68492600860486],[-33.736084010901592,150.68510500870502],[-33.736214011235532,150.68515300838558],[-33.736329001080499,150.68521899862637],[-33.736415010846848,150.68521599825331],[-33.737094991010686,150.68555800844152],[-33.737138011208394,150.68555698885368],[-33.737326001330565,150.68563699820282],[-33.737599011298634,150.68569801806507],[-33.737664001378008,150.68569601841529],[-33.737699001187487,150.68569601841529],[-33.737771001305582,150.68572798855791],[-33.737972011462602,150.68573999813495],[-33.738050451462399,150.68575087852969],[-33.738073001184183,150.68575400826018],[-33.738144001468811,150.68573499811211],[-33.738201000960373,150.68573400816865],[-33.738460001475708,150.68577802831248],[-33.738574991298385,150.68580897886736],[-33.738760991199172,150.68580397884443],[-33.738833000884249,150.68582000838236],[-33.739005010827825,150.68581500835953],[-33.739505011420981,150.68571601850678],[-33.739818010902212,150.68562202867693],[-33.7399750009996,150.68559997862991],[-33.739998001408942,150.68558300855588],[-33.740239001105117,150.68548898818332],[-33.740285001029044,150.68547500860092],[-33.740331000928336,150.68546299812553],[-33.740356971337505,150.68545879850154],[-33.740368000878128,150.68545697851482],[-33.740406990834401,150.68545299807977],[-33.74047900137878,150.68544700811344],[-33.740515001025756,150.68543901849733],[-33.740550001166064,150.685427008022],[-33.74061900116606,150.68539598829688],[-33.740685990925599,150.68535900824992],[-33.740717001254737,150.68533999810188],[-33.740777991016394,150.68529801803203],[-33.740836011403111,150.68525198835684],[-33.740881001061169,150.68526899885509],[-33.740929010820196,150.68527998884429],[-33.740952001262741,150.68528301886172],[-33.740985011215741,150.68528202891829],[-33.741016991042962,150.68527502834726],[-33.741082000942882,150.68525801874736],[-33.741115010845888,150.68525297830033],[-33.741214830802946,150.68527560865891],[-33.741272811303268,150.68527498882139],[-33.741315830899858,150.6852906087276],[-33.741571990898777,150.68519800859144],[-33.742095010738268,150.68482497867817],[-33.74250700127039,150.68462499842451],[-33.742976001082077,150.68444099830151],[-33.743161000942763,150.68440201860471],[-33.743772990931852,150.68417998830412],[-33.744041860821739,150.68401868860835],[-33.74409900130712,150.68400000814205],[-33.745587991428785,150.6831719986053],[-33.746335211393429,150.68273206845782],[-33.746507260820181,150.68261811806235],[-33.74659400135716,150.68256299833484],[-33.746650001041843,150.68250999863142],[-33.746693000761617,150.68249200807122],[-33.746721011406997,150.68245700880942],[-33.746989001113562,150.68226099821104],[-33.747243001181488,150.68204900838037],[-33.74729900118934,150.68197899817875],[-33.747440010917536,150.68187300865333],[-33.747779101234009,150.6815442081913],[-33.748017011388249,150.68130900858867],[-33.748157990805225,150.68118497819742],[-33.748382991362277,150.68093900869286],[-33.748428000963614,150.68092600827407],[-33.748555000827906,150.68082497834729],[-33.748596000796852,150.68075500856983],[-33.749593001131011,150.67968599811039],[-33.749830011438725,150.67935402839208],[-33.750334000963996,150.67874199810413],[-33.750910001264252,150.67811101875361],[-33.751641081241075,150.67709683876421],[-33.751677011221993,150.67704700831709],[-33.751832001059078,150.67688899825185],[-33.7521100012262,150.67647001861346],[-33.753078001346211,150.67536698805586],[-33.753388960826257,150.67498756842593],[-33.753623011171854,150.67470202813308],[-33.753638010968459,150.6746849888888],[-33.753944000868785,150.67424899875215],[-33.75398500124858,150.67414500887654],[-33.754160951248508,150.67390129863492],[-33.754237001348756,150.67379598823584],[-33.755077991174154,150.67283297808157],[-33.756374991123479,150.67101899835026],[-33.757340010925866,150.66974397814496],[-33.757856011268863,150.66902799840571],[-33.758679720914756,150.66801530872129],[-33.758830630775229,150.66915983875006],[-33.758841001463317,150.66926798872376],[-33.759678480798179,150.675889818331],[-33.759884350801428,150.67744723831882],[-33.75991902115053,150.67769123871633],[-33.759948990905052,150.67788599885984],[-33.759971841071426,150.67800827843459],[-33.760081300871796,150.678406638144],[-33.760097891041468,150.67849167805869],[-33.76011171120151,150.67855259820797],[-33.760297201357652,150.67996656892302],[-33.760324560802445,150.68028276871655],[-33.760294161003877,150.68067200872915],[-33.760269831448475,150.68092133883121],[-33.760275921119607,150.68116460889837],[-33.760281411083945,150.68122786826063],[-33.760285021271159,150.6813044783847],[-33.760448141231059,150.68258391830116],[-33.760501251342937,150.68296989832766],[-33.760524190981748,150.68308940839643],[-33.760538901294446,150.68314528809867],[-33.760647101216804,150.68352579828334],[-33.760669291000333,150.68365354859816],[-33.760682591275433,150.68379545815858],[-33.760709691447694,150.68399945837308],[-33.76075982080652,150.68420060823314],[-33.760606900890274,150.68433310883924],[-33.760660181180782,150.68437905856436],[-33.760689120799334,150.68451224817829],[-33.760710341188556,150.6846263782368],[-33.760764360774544,150.68529662833825],[-33.760812681284825,150.68570491892311],[-33.760836641006584,150.68588394866765],[-33.760870551447262,150.68627522875431],[-33.760927951069853,150.68635512850895],[-33.76089537075066,150.68645813832251],[-33.760916171372152,150.68652751880521],[-33.760936500741003,150.68663362870487],[-33.760948171399271,150.6867244789228],[-33.761072830838309,150.68766500873704],[-33.761127030927497,150.68807281872324],[-33.761171930777024,150.68840807807214],[-33.761212191331353,150.68872281810323],[-33.761235291347013,150.68889366868714],[-33.761259551173765,150.68904941859108],[-33.761268831205463,150.68916445864303],[-33.761264300972833,150.68924023872378],[-33.761251891002033,150.68932166830936],[-33.761330251457274,150.68942923886965],[-33.761286020844572,150.6895732684541],[-33.761392950972208,150.6898293484972],[-33.76154356106148,150.69090058857518],[-33.761737921083224,150.6922830580682],[-33.762021081001564,150.69429712854594],[-33.762142260957773,150.69517195827527],[-33.762267191247609,150.69604759828502],[-33.762374261299016,150.69680912889743],[-33.762430801079006,150.69723887843779],[-33.7625306611966,150.69799775812177],[-33.762573750784597,150.69832530812889],[-33.762750680895685,150.69966985883545],[-33.762784871379878,150.69992958873357],[-33.763017821415659,150.7017121382097],[-33.763111541343989,150.7024123983299],[-33.763140551081591,150.70263274878084],[-33.763331451265067,150.70408361869454],[-33.763597840931062,150.7061080188997],[-33.763754921172875,150.70730178828418],[-33.763907300763364,150.70845985861922],[-33.763942920908875,150.70873054886212],[-33.764024060732687,150.70933403886659],[-33.764080261124292,150.7097869281103],[-33.764080151344821,150.70983083865974],[-33.763526541340823,150.70994642848061],[-33.763053990834862,150.71009071857648],[-33.762288530736491,150.7103244287724],[-33.760644511213442,150.71086436836038],[-33.75978452120836,150.7111473188103],[-33.758957070782209,150.71141953888412],[-33.758448581398582,150.71158655815333],[-33.757944490948333,150.71175230810306],[-33.75717049118829,150.71200626812205],[-33.756865081165628,150.71209723871419],[-33.756601510899912,150.71217526817642],[-33.756400501085956,150.71222428834315],[-33.755629501017495,150.71237521878561],[-33.754258481010375,150.71265823840582],[-33.752744481435492,150.71300220871794],[-33.752059481406732,150.71315817870919],[-33.75125848146822,150.71339516865419],[-33.750811801445394,150.71349871835528],[-33.748427431051802,150.71404209849089],[-33.747593261313746,150.71422116865963],[-33.746951611125027,150.71435891812189],[-33.745890450802932,150.71458904853139],[-33.745338451053875,150.71474106863033],[-33.745093450750829,150.71479804876876],[-33.744601440939746,150.7149500383249],[-33.744586441056327,150.71495404840437],[-33.744166561276835,150.71510990880108],[-33.743563451182041,150.71533901872442],[-33.743091441257071,150.71552596801655],[-33.74304182146723,150.71554187807857],[-33.742713441371144,150.71564597844693],[-33.742692451080941,150.71565298889939],[-33.742664291216663,150.71566419807752],[-33.742374651483864,150.71577949864084],[-33.741953431231025,150.71595498812491],[-33.741559361448914,150.71615712882675],[-33.74080326134942,150.7164343480251],[-33.739973430786293,150.71658190888692],[-33.739793420805739,150.71661789809215],[-33.739674430874217,150.71663790806511],[-33.739565431326646,150.71664793865355],[-33.739292500823971,150.71670250861212],[-33.738104131234998,150.71694015881883],[-33.737870421012047,150.71698687840015],[-33.737149421403075,150.71712287884259],[-33.736712410759289,150.71721087870611],[-33.736567411388947,150.71724489880424],[-33.735100421484056,150.71757299858032],[-33.735087041041446,150.71755010860855],[-33.735060510989079,150.71729563834643],[-33.734294591047487,150.71197243846677],[-33.734259890913911,150.71173120847362],[-33.734108481357204,150.71084177842599],[-33.734014690879029,150.71038986834589],[-33.733897511281519,150.71003435827555],[-33.733766220994731,150.70969425880395],[-33.733625931369076,150.70939659844129],[-33.733580051140237,150.70932147862229],[-33.733252321379297,150.70883806821845],[-33.73289679111933,150.70844956841765],[-33.732797561382156,150.70834510872311],[-33.732580071360765,150.70809646852723],[-33.732420060754514,150.70787950831811],[-33.732166911043734,150.70748089887707],[-33.732119030855138,150.70737551840941],[-33.732034841147495,150.70717180835078],[-33.732021521487248,150.70713424889038],[-33.731941191094755,150.70694565837627],[-33.731884731318331,150.70674924802762],[-33.731794540831196,150.70650816805312],[-33.731696210799306,150.70602151832438],[-33.731523651290814,150.70482212818121],[-33.731192901426262,150.70256992869477],[-33.730809901141122,150.69999244834551],[-33.730346340892034,150.69684354874582],[-33.730160620839477,150.69563061829638],[-33.730122120803358,150.69458237868292],[-33.730228371089026,150.69431085839673],[-33.730017381013965,150.69325902821708],[-33.729811841244889,150.69275930889927],[-33.72977760100499,150.69254468880146],[-33.729713830940518,150.69210541801741],[-33.729666730848656,150.69176048830448]]];
+
+renderers.map = function(){
+  leafletMap = L.map('map-container',{zoomControl:true}).setView([-33.746, 150.700], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'&copy; OpenStreetMap contributors', maxZoom:19
+  }).addTo(leafletMap);
+
+  /* SA2 boundary polygon — teal fill matching project theme */
+  L.polygon(penrithSA2, {
+    color: '#20B8B5',
+    weight: 2.5,
+    opacity: 0.9,
+    fillColor: '#20B8B5',
+    fillOpacity: 0.15,
+    dashArray: null
+  }).addTo(leafletMap).bindPopup('<strong style="font-size:13px;">Penrith SA2</strong><br><span style="font-size:11px;color:#888;">Code: 124031464</span>');
+
+  /* School markers */
+  D.schools.forEach(function(s){
+    L.circleMarker([s.lat,s.lon],{
+      radius:8, fillColor:'#E36B63', color:'#ffffff', weight:2, opacity:1, fillOpacity:0.85
+    }).addTo(leafletMap).bindPopup('<strong style="font-size:13px;">'+s.name+'</strong><br><span style="font-size:11px;color:#888;">'+s.lat.toFixed(4)+', '+s.lon.toFixed(4)+'</span>');
+  });
+
+  /* Force proper tile rendering after tab becomes visible */
+  setTimeout(function(){leafletMap.invalidateSize();},100);
+  setTimeout(function(){leafletMap.invalidateSize();},300);
+  setTimeout(function(){leafletMap.invalidateSize();},600);
+};
+
+/* ================================================================
+   INIT — render first tab
+   ================================================================ */
+rendered.icsea = true;
+renderers.icsea();
+</script>
+
+</body>
+</html>
